@@ -7,6 +7,7 @@ const express = require('express')
 const concat = require('concat-stream');
 const { promisify } = require('util');
 const promBundle = require("express-prom-bundle");
+const fs = require('fs')
 
 const {
   PROMETHEUS_ENABLED = false,
@@ -47,14 +48,8 @@ app.use(function(req, res, next){
 
 //Handle all paths
 app.all('*', (req, res) => {
-  
-  if(process.env.OVERRIDE_RESPONSE_BODY_FILE_PATH){
-    // Path is relative to current directory
-    res.sendFile(process.env.OVERRIDE_RESPONSE_BODY_FILE_PATH, { root : __dirname});
-    return;
-  }
 
-  const echo = {
+    const echo = {
     path: req.path,
     headers: req.headers,
     method: req.method,
@@ -137,8 +132,10 @@ app.all('*', (req, res) => {
     //Set the response content type to what the user wants
     const setResponseContentType = req.headers["x-set-response-content-type"] || req.query["x-set-response-content-type"];
 
+
     if(setResponseContentType){
-      res.contentType(setResponseContentType);
+      console.log("want to print out " + setResponseContentType)
+      res.set("Content-Type", setResponseContentType);
     }
 
     //Set the CORS policy
@@ -159,6 +156,13 @@ app.all('*', (req, res) => {
     if (process.env.ECHO_BACK_TO_CLIENT != undefined && process.env.ECHO_BACK_TO_CLIENT == "false"){
       res.end();
     }
+
+    if(process.env.OVERRIDE_RESPONSE_BODY_FILE_PATH){
+      // Path is relative to current directory
+      const fileContents = fs.readFileSync(__dirname + process.env.OVERRIDE_RESPONSE_BODY_FILE_PATH).toString()
+      res.send(fileContents)
+    }
+
     //Ability to send just the request body in the response, nothing else
     else if ("response_body_only" in req.query && req.query["response_body_only"] == "true") {
       res.send(req.body);
